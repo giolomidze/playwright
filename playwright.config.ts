@@ -42,7 +42,7 @@ export default defineConfig({
         video:
             'on',
         screenshot:
-            'only-on-failure',
+            'on',
     }
     ,
 
