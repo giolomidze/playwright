@@ -75,11 +75,12 @@ class MyReporter implements Reporter {
       }
     }
 
-    // Capture attachment filenames only
+    // Capture attachment filenames with the folder name (retry or initial run)
     result.attachments.forEach(attachment => {
       if (attachment.path) {
-        const filename = path.basename(attachment.path); // Extract only the filename
-        attachments.push(filename);
+        const folderName = path.basename(path.dirname(attachment.path)); // Get the folder name
+        const filename = path.basename(attachment.path); // Get the file name
+        attachments.push(`${folderName}/${filename}`); // Combine them for clarity
       }
     });
 
