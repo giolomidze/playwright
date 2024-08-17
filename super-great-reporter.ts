@@ -3,20 +3,8 @@ import path from 'path';
 import type {
   FullConfig, FullResult, Reporter, Suite, TestCase, TestResult
 } from '@playwright/test/reporter';
-
-interface SpecFileRecord {
-  specFileName: string;
-  datetime: string;
-  tests: { 
-    title: string; 
-    status: string; 
-    duration: number; 
-    retry: number;
-    errorStack?: string;
-    failureDetails?: string;
-    attachments?: string[];
-  }[];
-}
+import type { SpecFileRecord } from './reporterTypes';
+import { getProjectName, saveJsonSummary, moveArtifacts, extractFailedCode } from './reporterUtils';
 
 class MyReporter implements Reporter {
   private runId: string;
@@ -29,7 +17,7 @@ class MyReporter implements Reporter {
     this.runId = `${Date.now()}`;
     this.specFileRecords = new Map();
     this.testStartTimes = new Map();
-    this.projectName = path.basename(process.cwd()); // Get the project directory name
+    this.projectName = getProjectName();
   }
 
   onBegin(config: FullConfig, suite: Suite) {
@@ -65,12 +53,11 @@ class MyReporter implements Reporter {
         if (match) {
           const lineNumber = parseInt(match[1], 10);
           const columnNumber = parseInt(match[2], 10);
-          const filePath = path.join(test.location.file);
-          const fileContent = fs.readFileSync(filePath, 'utf-8');
-          const fileLines = fileContent.split('\n');
-          const failedCode = fileLines.slice(Math.max(lineNumber - 2, 0), lineNumber + 1).join('\n');
+          const failedCode = extractFailedCode(test.location.file, lineNumber);
 
-          failureDetails = `Failed at line ${lineNumber}, column ${columnNumber}:\n${failedCode}`;
+          if (failedCode) {
+            failureDetails = `Failed at line ${lineNumber}, column ${columnNumber}:\n${failedCode}`;
+          }
         }
       }
     }
@@ -112,39 +99,12 @@ class MyReporter implements Reporter {
     const resultsDir = path.join(__dirname, 'results');
     const artifactsDir = path.join(resultsDir, `run_${this.runId}`);
 
-    if (!fs.existsSync(artifactsDir)) {
-      fs.mkdirSync(artifactsDir, { recursive: true });
-    }
-
-    // Move artifacts from the base outputDir to the custom artifactsDir, avoiding the results directory itself
-    const baseOutputDir = path.join(__dirname, 'test-results');
-    fs.readdirSync(baseOutputDir).forEach(file => {
-      const sourcePath = path.join(baseOutputDir, file);
-      const destPath = path.join(artifactsDir, file);
-
-      if (sourcePath !== artifactsDir) {
-        if (fs.lstatSync(sourcePath).isDirectory()) {
-          fs.renameSync(sourcePath, destPath);
-        } else if (fs.lstatSync(sourcePath).isFile()) {
-          fs.renameSync(sourcePath, destPath);
-        }
-      }
-    });
+    moveArtifacts(path.join(__dirname, 'test-results'), artifactsDir);
 
     // Save the JSON summary to the main results directory with the project name and runId in the filename
-    for (const [specFileName, record] of this.specFileRecords.entries()) {
-      const fileName = `${this.projectName}_${specFileName}_runid${this.runId}_${record.datetime}.json`;
-      const outputPath = path.join(resultsDir, fileName);
-      const data = {
-        runId: this.runId,
-        specFileName: record.specFileName,
-        datetime: record.datetime,
-        tests: record.tests
-      };
-
-      fs.writeFileSync(outputPath, JSON.stringify(data, null, 2));
-      console.log(`Saved summary result to ${outputPath}`);
-    }
+    this.specFileRecords.forEach((record, specFileName) => {
+      saveJsonSummary(resultsDir, this.projectName, specFileName, this.runId, record.datetime, record);
+    });
 
     console.log(`Artifacts moved to ${artifactsDir}`);
   }
