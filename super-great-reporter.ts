@@ -11,6 +11,7 @@ interface SpecFileRecord {
     title: string; 
     status: string; 
     duration: number; 
+    retry: number;
     errorStack?: string;
     failureDetails?: string;
     attachments?: string[];
@@ -37,12 +38,14 @@ class MyReporter implements Reporter {
   }
 
   onTestBegin(test: TestCase, result: TestResult) {
-    console.log(`Starting test ${test.title}`);
+    const specFileName = path.basename(test.location.file);
+    console.log(`\nRunning spec file: ${specFileName}`);
+    console.log(`Starting test: ${test.title} (Retry: ${result.retry})`);
     this.testStartTimes.set(test.id, Date.now());
   }
 
   onTestEnd(test: TestCase, result: TestResult) {
-    console.log(`Finished test ${test.title}: ${result.status}`);
+    console.log(`Finished test: ${test.title} (Retry: ${result.retry}): ${result.status}`);
 
     const startTime = this.testStartTimes.get(test.id);
     const duration = startTime ? Date.now() - startTime : 0;
@@ -94,6 +97,7 @@ class MyReporter implements Reporter {
         title: test.title, 
         status: result.status, 
         duration,
+        retry: result.retry,
         errorStack,
         failureDetails,
         attachments
