@@ -7,17 +7,19 @@ import type {
 interface SpecFileRecord {
   specFileName: string;
   datetime: string;
-  tests: { title: string; status: string; }[];
+  tests: { title: string; status: string; duration: number }[];
 }
 
 class MyReporter implements Reporter {
   private runId: string;
   private suite: Suite;
   private specFileRecords: Map<string, SpecFileRecord>;
+  private testStartTimes: Map<string, number>;
 
   constructor() {
     this.runId = `run_${Date.now()}`;
     this.specFileRecords = new Map();
+    this.testStartTimes = new Map();
   }
 
   onBegin(config: FullConfig, suite: Suite) {
@@ -27,11 +29,15 @@ class MyReporter implements Reporter {
 
   onTestBegin(test: TestCase, result: TestResult) {
     console.log(`Starting test ${test.title}`);
+    // Record the start time for this test
+    this.testStartTimes.set(test.id, Date.now());
   }
 
   onTestEnd(test: TestCase, result: TestResult) {
     console.log(`Finished test ${test.title}: ${result.status}`);
 
+    const startTime = this.testStartTimes.get(test.id);
+    const duration = startTime ? Date.now() - startTime : 0; // Calculate duration
     const datetime = new Date().toISOString().replace(/[:.]/g, '-');
     const specFileName = path.basename(test.location.file);
 
@@ -47,7 +53,7 @@ class MyReporter implements Reporter {
     // Add this test result to the corresponding spec file record
     const record = this.specFileRecords.get(specFileName);
     if (record) {
-      record.tests.push({ title: test.title, status: result.status });
+      record.tests.push({ title: test.title, status: result.status, duration });
     }
   }
 
