@@ -22,16 +22,18 @@ class MyReporter implements Reporter {
   private suite: Suite;
   private specFileRecords: Map<string, SpecFileRecord>;
   private testStartTimes: Map<string, number>;
+  private projectName: string;
 
   constructor() {
     this.runId = `${Date.now()}`;
     this.specFileRecords = new Map();
     this.testStartTimes = new Map();
+    this.projectName = path.basename(process.cwd()); // Get the project directory name
   }
 
   onBegin(config: FullConfig, suite: Suite) {
     this.suite = suite;
-    console.log(`Starting the run with ${suite.allTests().length} tests`);
+    console.log(`Starting the run with ${suite.allTests().length} tests in project ${this.projectName}`);
   }
 
   onTestBegin(test: TestCase, result: TestResult) {
@@ -69,6 +71,14 @@ class MyReporter implements Reporter {
         }
       }
     }
+
+    // Capture attachment filenames only
+    result.attachments.forEach(attachment => {
+      if (attachment.path) {
+        const filename = path.basename(attachment.path); // Extract only the filename
+        attachments.push(filename);
+      }
+    });
 
     if (!this.specFileRecords.has(specFileName)) {
       this.specFileRecords.set(specFileName, {
@@ -116,9 +126,9 @@ class MyReporter implements Reporter {
       }
     });
 
-    // Save the JSON summary to the main results directory with the runId in the filename
+    // Save the JSON summary to the main results directory with the project name and runId in the filename
     for (const [specFileName, record] of this.specFileRecords.entries()) {
-      const fileName = `${specFileName}_runid${this.runId}_${record.datetime}.json`;
+      const fileName = `${this.projectName}_${specFileName}_runid${this.runId}_${record.datetime}.json`;
       const outputPath = path.join(resultsDir, fileName);
       const data = {
         runId: this.runId,
