@@ -1,13 +1,19 @@
 import fs from 'fs';
 import path from 'path';
 import type {
-  FullConfig, FullResult, Reporter, Suite, TestCase, TestResult
+  FullConfig, FullResult, Reporter, Suite, TestCase, TestResult, TestError
 } from '@playwright/test/reporter';
 
 interface SpecFileRecord {
   specFileName: string;
   datetime: string;
-  tests: { title: string; status: string; duration: number }[];
+  tests: { 
+    title: string; 
+    status: string; 
+    duration: number; 
+    errorStack?: string;
+    failureDetails?: string;
+  }[];
 }
 
 class MyReporter implements Reporter {
@@ -29,7 +35,6 @@ class MyReporter implements Reporter {
 
   onTestBegin(test: TestCase, result: TestResult) {
     console.log(`Starting test ${test.title}`);
-    // Record the start time for this test
     this.testStartTimes.set(test.id, Date.now());
   }
 
@@ -37,11 +42,32 @@ class MyReporter implements Reporter {
     console.log(`Finished test ${test.title}: ${result.status}`);
 
     const startTime = this.testStartTimes.get(test.id);
-    const duration = startTime ? Date.now() - startTime : 0; // Calculate duration
+    const duration = startTime ? Date.now() - startTime : 0;
     const datetime = new Date().toISOString().replace(/[:.]/g, '-');
     const specFileName = path.basename(test.location.file);
 
-    // If this spec file hasn't been recorded yet, create a new record
+    let errorStack: string | undefined;
+    let failureDetails: string | undefined;
+
+    if (result.status === 'failed' && result.error && result.error.stack) {
+      errorStack = result.error.stack;
+
+      const failureLocation = errorStack.split('\n').find(line => line.includes(test.location.file));
+      if (failureLocation) {
+        const match = failureLocation.match(/:(\d+):(\d+)/);
+        if (match) {
+          const lineNumber = parseInt(match[1], 10);
+          const columnNumber = parseInt(match[2], 10);
+          const filePath = path.join(test.location.file);
+          const fileContent = fs.readFileSync(filePath, 'utf-8');
+          const fileLines = fileContent.split('\n');
+          const failedCode = fileLines.slice(Math.max(lineNumber - 2, 0), lineNumber + 1).join('\n');
+
+          failureDetails = `Failed at line ${lineNumber}, column ${columnNumber}:\n${failedCode}`;
+        }
+      }
+    }
+
     if (!this.specFileRecords.has(specFileName)) {
       this.specFileRecords.set(specFileName, {
         specFileName,
@@ -50,10 +76,15 @@ class MyReporter implements Reporter {
       });
     }
 
-    // Add this test result to the corresponding spec file record
     const record = this.specFileRecords.get(specFileName);
     if (record) {
-      record.tests.push({ title: test.title, status: result.status, duration });
+      record.tests.push({ 
+        title: test.title, 
+        status: result.status, 
+        duration,
+        errorStack,
+        failureDetails
+      });
     }
   }
 
@@ -65,7 +96,6 @@ class MyReporter implements Reporter {
       fs.mkdirSync(resultsDir, { recursive: true });
     }
 
-    // Iterate through the spec file records and write each one to a JSON file
     for (const [specFileName, record] of this.specFileRecords.entries()) {
       const fileName = `${this.runId}_${specFileName}_${record.datetime}.json`;
       const outputPath = path.join(resultsDir, fileName);
