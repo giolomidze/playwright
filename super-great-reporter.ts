@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import type {
-  FullConfig, FullResult, Reporter, Suite, TestCase, TestResult, TestError
+  FullConfig, FullResult, Reporter, Suite, TestCase, TestResult
 } from '@playwright/test/reporter';
 
 interface SpecFileRecord {
@@ -13,6 +13,7 @@ interface SpecFileRecord {
     duration: number; 
     errorStack?: string;
     failureDetails?: string;
+    attachments?: string[];
   }[];
 }
 
@@ -48,6 +49,7 @@ class MyReporter implements Reporter {
 
     let errorStack: string | undefined;
     let failureDetails: string | undefined;
+    let attachments: string[] = [];
 
     if (result.status === 'failed' && result.error && result.error.stack) {
       errorStack = result.error.stack;
@@ -83,7 +85,8 @@ class MyReporter implements Reporter {
         status: result.status, 
         duration,
         errorStack,
-        failureDetails
+        failureDetails,
+        attachments
       });
     }
   }
@@ -92,12 +95,30 @@ class MyReporter implements Reporter {
     console.log(`Finished the run: ${result.status}`);
 
     const resultsDir = path.join(__dirname, 'results');
-    if (!fs.existsSync(resultsDir)) {
-      fs.mkdirSync(resultsDir, { recursive: true });
+    const artifactsDir = path.join(resultsDir, this.runId);
+
+    if (!fs.existsSync(artifactsDir)) {
+      fs.mkdirSync(artifactsDir, { recursive: true });
     }
 
+    // Move artifacts from the base outputDir to the custom artifactsDir, avoiding the results directory itself
+    const baseOutputDir = path.join(__dirname, 'test-results');
+    fs.readdirSync(baseOutputDir).forEach(file => {
+      const sourcePath = path.join(baseOutputDir, file);
+      const destPath = path.join(artifactsDir, file);
+
+      if (sourcePath !== artifactsDir) {
+        if (fs.lstatSync(sourcePath).isDirectory()) {
+          fs.renameSync(sourcePath, destPath);
+        } else if (fs.lstatSync(sourcePath).isFile()) {
+          fs.renameSync(sourcePath, destPath);
+        }
+      }
+    });
+
+    // Save the JSON summary to the main results directory
     for (const [specFileName, record] of this.specFileRecords.entries()) {
-      const fileName = `${this.runId}_${specFileName}_${record.datetime}.json`;
+      const fileName = `${record.specFileName}_${record.datetime}.json`;
       const outputPath = path.join(resultsDir, fileName);
       const data = {
         runId: this.runId,
@@ -109,6 +130,8 @@ class MyReporter implements Reporter {
       fs.writeFileSync(outputPath, JSON.stringify(data, null, 2));
       console.log(`Saved summary result to ${outputPath}`);
     }
+
+    console.log(`Artifacts moved to ${artifactsDir}`);
   }
 }
 

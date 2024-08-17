@@ -26,7 +26,7 @@ export default defineConfig({
     workers: process.env.CI ? 1 : undefined,
     /* Reporter to use. See https://playwright.dev/docs/test-reporters */
     reporter: [
-        [ './super-great-reporter.ts',]
+        [ './super-great-reporter.ts']
        // ['@microsoft/mpt-reporter'] // Microsoft Playwright Testing reporter
     ],
     /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
