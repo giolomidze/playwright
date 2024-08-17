@@ -1,10 +1,10 @@
-import fs from 'fs';
 import path from 'path';
 import type {
   FullConfig, FullResult, Reporter, Suite, TestCase, TestResult
 } from '@playwright/test/reporter';
 import type { SpecFileRecord } from './reporterTypes';
-import { getProjectName, saveJsonSummary, moveArtifacts, extractFailedCode } from './reporterUtils';
+import { getProjectName, saveJsonSummary, moveArtifacts } from './reporterUtils';
+import { getAttachments, processTestFailure } from './reporterHelpers';
 
 class MyReporter implements Reporter {
   private runId: string;
@@ -40,36 +40,8 @@ class MyReporter implements Reporter {
     const datetime = new Date().toISOString().replace(/[:.]/g, '-');
     const specFileName = path.basename(test.location.file);
 
-    let errorStack: string | undefined;
-    let failureDetails: string | undefined;
-    let attachments: string[] = [];
-
-    if (result.status === 'failed' && result.error && result.error.stack) {
-      errorStack = result.error.stack;
-
-      const failureLocation = errorStack.split('\n').find(line => line.includes(test.location.file));
-      if (failureLocation) {
-        const match = failureLocation.match(/:(\d+):(\d+)/);
-        if (match) {
-          const lineNumber = parseInt(match[1], 10);
-          const columnNumber = parseInt(match[2], 10);
-          const failedCode = extractFailedCode(test.location.file, lineNumber);
-
-          if (failedCode) {
-            failureDetails = `Failed at line ${lineNumber}, column ${columnNumber}:\n${failedCode}`;
-          }
-        }
-      }
-    }
-
-    // Capture attachment filenames with the folder name (retry or initial run)
-    result.attachments.forEach(attachment => {
-      if (attachment.path) {
-        const folderName = path.basename(path.dirname(attachment.path)); // Get the folder name
-        const filename = path.basename(attachment.path); // Get the file name
-        attachments.push(`${folderName}/${filename}`); // Combine them for clarity
-      }
-    });
+    const { errorStack, failureDetails } = processTestFailure(result, test.location.file);
+    const attachments = getAttachments(result);
 
     if (!this.specFileRecords.has(specFileName)) {
       this.specFileRecords.set(specFileName, {
@@ -103,7 +75,12 @@ class MyReporter implements Reporter {
 
     // Save the JSON summary to the main results directory with the project name and runId in the filename
     this.specFileRecords.forEach((record, specFileName) => {
-      saveJsonSummary(resultsDir, this.projectName, specFileName, this.runId, record.datetime, record);
+      // Ensure the runId is included in the record before saving
+      const enrichedRecord = {
+        ...record,
+        runId: this.runId, // Include runId in the record
+      };
+      saveJsonSummary(resultsDir, this.projectName, specFileName, this.runId, record.datetime, enrichedRecord);
     });
 
     console.log(`Artifacts moved to ${artifactsDir}`);
