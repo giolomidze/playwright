@@ -24,7 +24,7 @@ class MyReporter implements Reporter {
   private testStartTimes: Map<string, number>;
 
   constructor() {
-    this.runId = `run_${Date.now()}`;
+    this.runId = `${Date.now()}`;
     this.specFileRecords = new Map();
     this.testStartTimes = new Map();
   }
@@ -95,7 +95,7 @@ class MyReporter implements Reporter {
     console.log(`Finished the run: ${result.status}`);
 
     const resultsDir = path.join(__dirname, 'results');
-    const artifactsDir = path.join(resultsDir, this.runId);
+    const artifactsDir = path.join(resultsDir, `run_${this.runId}`);
 
     if (!fs.existsSync(artifactsDir)) {
       fs.mkdirSync(artifactsDir, { recursive: true });
@@ -116,9 +116,9 @@ class MyReporter implements Reporter {
       }
     });
 
-    // Save the JSON summary to the main results directory
+    // Save the JSON summary to the main results directory with the runId in the filename
     for (const [specFileName, record] of this.specFileRecords.entries()) {
-      const fileName = `${record.specFileName}_${record.datetime}.json`;
+      const fileName = `${specFileName}_runid${this.runId}_${record.datetime}.json`;
       const outputPath = path.join(resultsDir, fileName);
       const data = {
         runId: this.runId,
