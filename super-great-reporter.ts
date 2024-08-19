@@ -56,6 +56,7 @@ class MyReporter implements Reporter {
       this.specFileRecords.set(specFileName, {
         specFileName,
         datetime,
+        totalDuration: 0, // Initialize total duration
         tests: []
       });
     }
@@ -71,10 +72,14 @@ class MyReporter implements Reporter {
         failureDetails,
         attachments
       });
-    }
-  }
 
-  onEnd(result: FullResult) {
+      // Update the total duration for the spec file
+      record.totalDuration += duration;
+    }
+}
+
+
+onEnd(result: FullResult) {
     console.log(`Finished the run: ${result.status.toUpperCase()}`);
 
     const resultsDir = path.join(__dirname, 'results');
@@ -92,7 +97,8 @@ class MyReporter implements Reporter {
     });
 
     console.log(`Artifacts moved to ${artifactsDir}`);
-  }
+}
+
 }
 
 export default MyReporter;

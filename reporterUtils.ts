@@ -15,7 +15,7 @@ export function saveJsonSummary(
   data: SpecFileRecord,
   status: string // Status as a parameter
 ): void {
-  const fileName = `${projectName}_${specFileName}_runid${runId}_${datetime}_${status}.json`;
+  const fileName = `${projectName}_${specFileName}_runid${runId}_${datetime}_${status}_${data.totalDuration}ms.json`;
   const outputPath = path.join(resultsDir, fileName);
   fs.writeFileSync(outputPath, JSON.stringify(data, null, 2));
   console.log(`Saved summary result to ${outputPath}`);
