@@ -2,8 +2,8 @@ import path from 'path';
 import type {
   FullConfig, FullResult, Reporter, Suite, TestCase, TestResult
 } from '@playwright/test/reporter';
-import type { SpecFileRecord } from './reporterTypes';
-import { getProjectName, saveJsonSummary, moveArtifacts } from './reporterUtils';
+import type { SpecFileRecord, SpecFileLink } from './reporterTypes';
+import { getProjectName, saveJsonSummary, moveArtifacts, saveProjectLatest } from './reporterUtils';
 import { getAttachments, processTestFailure } from './reporterHelpers';
 
 class MyReporter implements Reporter {
@@ -76,16 +76,37 @@ class MyReporter implements Reporter {
       // Update the total duration for the spec file
       record.totalDuration += duration;
     }
-}
+  }
 
-
-onEnd(result: FullResult) {
+  onEnd(result: FullResult) {
     console.log(`Finished the run: ${result.status.toUpperCase()}`);
 
     const resultsDir = path.join(__dirname, 'results');
     const artifactsDir = path.join(resultsDir, `run_${this.runId}`);
 
     moveArtifacts(path.join(__dirname, 'test-results'), artifactsDir);
+
+    const latestSummary: {
+      runId: string;
+      timestamp: string;
+      totalTests: number;
+      passed: number;
+      failed: number;
+      skipped: number;
+      specFiles: SpecFileLink[]; // Use the SpecFileLink type for the array
+      branchName: string;
+      pullRequestNumber: string;
+    } = {
+      runId: this.runId,
+      timestamp: new Date().toISOString(),
+      totalTests: 0,
+      passed: 0,
+      failed: 0,
+      skipped: 0,
+      specFiles: [], // Initialize as an empty array
+      branchName: "main", // Update as needed
+      pullRequestNumber: "42", // Update as needed
+    };
 
     this.specFileRecords.forEach((record, specFileName) => {
       const overallStatus = record.tests.some(test => test.status === 'failed') ? 'failure' : 'success';
@@ -94,11 +115,21 @@ onEnd(result: FullResult) {
         runId: this.runId,
       };
       saveJsonSummary(resultsDir, this.projectName, specFileName, this.runId, record.datetime, enrichedRecord, overallStatus);
+
+      latestSummary.totalTests += record.tests.length;
+      latestSummary.passed += record.tests.filter(test => test.status === 'passed').length;
+      latestSummary.failed += record.tests.filter(test => test.status === 'failed').length;
+      latestSummary.skipped += record.tests.filter(test => test.status === 'skipped').length;
+      latestSummary.specFiles.push({
+        name: specFileName,
+        runUrl: path.join(resultsDir, `${this.projectName}_runid_${this.runId}_${record.datetime}_summary.json`)
+      });
     });
 
-    console.log(`Artifacts moved to ${artifactsDir}`);
-}
+    saveProjectLatest(resultsDir, this.projectName, latestSummary);
 
+    console.log(`Artifacts moved to ${artifactsDir}`);
+  }
 }
 
 export default MyReporter;

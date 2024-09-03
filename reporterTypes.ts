@@ -12,3 +12,8 @@ export interface SpecFileRecord {
     attachments?: string[];
   }[];
 }
+
+export interface SpecFileLink {
+  name: string;
+  runUrl: string;
+}
