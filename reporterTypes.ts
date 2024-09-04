@@ -16,4 +16,5 @@ export interface SpecFileRecord {
 export interface SpecFileLink {
   name: string;
   runUrl: string;
+  status: string
 }

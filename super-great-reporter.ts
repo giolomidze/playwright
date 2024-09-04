@@ -112,11 +112,21 @@ class MyReporter implements Reporter {
     };
   
     this.specFileRecords.forEach((record, specFileName) => {
-      const overallStatus = record.tests.some(test => test.status === 'failed') ? 'failure' : 'success';
+      // Calculate overall status for the spec file
+      const hasFailedTests = record.tests.some(test => test.status === 'failed');
+      const hasSkippedTests = record.tests.every(test => test.status === 'skipped');
+      const overallStatus = hasFailedTests
+        ? 'failed'
+        : hasSkippedTests
+        ? 'skipped'
+        : 'passed';
+      
       const enrichedRecord = {
         ...record,
         runId: this.runId,
+        status: overallStatus // Add the overall status of the spec file
       };
+  
       saveJsonSummary(resultsDir, this.projectName, specFileName, this.runId, record.datetime, enrichedRecord, overallStatus);
   
       // Accumulate stats
@@ -126,10 +136,11 @@ class MyReporter implements Reporter {
       latestSummary.skipped += record.tests.filter(test => test.status === 'skipped').length;
       latestSummary.totalRuntime += record.totalDuration; // Add runtime for each spec
   
-      // Save spec files for linking
+      // Save spec files for linking and add status
       latestSummary.specFiles.push({
         name: specFileName,
-        runUrl: path.join(resultsDir, `${this.projectName}_runid_${this.runId}_${record.datetime}_summary.json`)
+        runUrl: path.join(resultsDir, `${this.projectName}_runid_${this.runId}_${record.datetime}_summary.json`),
+        status: overallStatus // Add the status here
       });
     });
   
