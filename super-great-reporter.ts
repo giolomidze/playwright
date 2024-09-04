@@ -143,7 +143,8 @@ class MyReporter implements Reporter {
         name: specFileName,
         runUrl: path.join(resultsDir, `${this.projectName}_runid_${this.runId}_${record.datetime}_summary.json`),
         status: overallStatus, // Add the status here
-        totalDuration: record.totalDuration // Add the total duration of the spec file
+        totalDuration: record.totalDuration, // Add the total duration of the spec file
+        tests: record.tests // Add individual test cases here
       });
     });
   
@@ -157,6 +158,7 @@ class MyReporter implements Reporter {
     console.log(`Artifacts moved to ${artifactsDir}`);
     console.log(`Run summary saved as ${runSummaryFileName}`);
   }
+  
   
   
 }
