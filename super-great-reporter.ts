@@ -120,11 +120,13 @@ class MyReporter implements Reporter {
         : hasSkippedTests
         ? 'skipped'
         : 'passed';
-      
+  
       const enrichedRecord = {
         ...record,
         runId: this.runId,
-        status: overallStatus // Add the overall status of the spec file
+        status: overallStatus, // Add the overall status of the spec file
+        totalDuration: record.totalDuration, // Include the total duration of the spec file
+        tests: record.tests // Include individual test case runtimes
       };
   
       saveJsonSummary(resultsDir, this.projectName, specFileName, this.runId, record.datetime, enrichedRecord, overallStatus);
@@ -136,11 +138,12 @@ class MyReporter implements Reporter {
       latestSummary.skipped += record.tests.filter(test => test.status === 'skipped').length;
       latestSummary.totalRuntime += record.totalDuration; // Add runtime for each spec
   
-      // Save spec files for linking and add status
+      // Save spec files for linking and add status and duration
       latestSummary.specFiles.push({
         name: specFileName,
         runUrl: path.join(resultsDir, `${this.projectName}_runid_${this.runId}_${record.datetime}_summary.json`),
-        status: overallStatus // Add the status here
+        status: overallStatus, // Add the status here
+        totalDuration: record.totalDuration // Add the total duration of the spec file
       });
     });
   
@@ -154,6 +157,7 @@ class MyReporter implements Reporter {
     console.log(`Artifacts moved to ${artifactsDir}`);
     console.log(`Run summary saved as ${runSummaryFileName}`);
   }
+  
   
 }
 
