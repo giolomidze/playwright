@@ -50,7 +50,7 @@ export function extractFailedCode(filePath: string, lineNumber: number): string 
 }
 
 export function saveProjectLatest(resultsDir: string, projectName: string, latestSummary: any) {
-  const filePath = path.join(resultsDir, `${projectName}_latest.json`);
+  const filePath = path.join(resultsDir, `project_${projectName}_latest.json`);
   fs.writeFileSync(filePath, JSON.stringify(latestSummary, null, 2));
   console.log(`Latest project summary saved to ${filePath}`);
 }
