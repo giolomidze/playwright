@@ -1,4 +1,5 @@
 import path from 'path';
+import fs from 'fs';
 import type {
   FullConfig, FullResult, Reporter, Suite, TestCase, TestResult
 } from '@playwright/test/reporter';
@@ -80,12 +81,12 @@ class MyReporter implements Reporter {
 
   onEnd(result: FullResult) {
     console.log(`Finished the run: ${result.status.toUpperCase()}`);
-
+  
     const resultsDir = path.join(__dirname, 'results');
     const artifactsDir = path.join(resultsDir, `run_${this.runId}`);
-
+  
     moveArtifacts(path.join(__dirname, 'test-results'), artifactsDir);
-
+  
     const latestSummary: {
       runId: string;
       timestamp: string;
@@ -93,9 +94,10 @@ class MyReporter implements Reporter {
       passed: number;
       failed: number;
       skipped: number;
-      specFiles: SpecFileLink[]; // Use the SpecFileLink type for the array
+      specFiles: SpecFileLink[];
       branchName: string;
       pullRequestNumber: string;
+      totalRuntime: number; // Total suite runtime
     } = {
       runId: this.runId,
       timestamp: new Date().toISOString(),
@@ -103,11 +105,12 @@ class MyReporter implements Reporter {
       passed: 0,
       failed: 0,
       skipped: 0,
-      specFiles: [], // Initialize as an empty array
-      branchName: "main", // Update as needed
-      pullRequestNumber: "42", // Update as needed
+      specFiles: [],
+      branchName: "main", // This can be dynamically set
+      pullRequestNumber: "42", // This can also be set dynamically
+      totalRuntime: 0 // Initialize
     };
-
+  
     this.specFileRecords.forEach((record, specFileName) => {
       const overallStatus = record.tests.some(test => test.status === 'failed') ? 'failure' : 'success';
       const enrichedRecord = {
@@ -115,21 +118,32 @@ class MyReporter implements Reporter {
         runId: this.runId,
       };
       saveJsonSummary(resultsDir, this.projectName, specFileName, this.runId, record.datetime, enrichedRecord, overallStatus);
-
+  
+      // Accumulate stats
       latestSummary.totalTests += record.tests.length;
       latestSummary.passed += record.tests.filter(test => test.status === 'passed').length;
       latestSummary.failed += record.tests.filter(test => test.status === 'failed').length;
       latestSummary.skipped += record.tests.filter(test => test.status === 'skipped').length;
+      latestSummary.totalRuntime += record.totalDuration; // Add runtime for each spec
+  
+      // Save spec files for linking
       latestSummary.specFiles.push({
         name: specFileName,
         runUrl: path.join(resultsDir, `${this.projectName}_runid_${this.runId}_${record.datetime}_summary.json`)
       });
     });
-
+  
+    // Save the new run_runId_timestamp.json capturing the full test run summary
+    const runSummaryFileName = `run_${this.runId}_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    const runSummaryFilePath = path.join(resultsDir, runSummaryFileName);
+    fs.writeFileSync(runSummaryFilePath, JSON.stringify(latestSummary, null, 2));
+  
     saveProjectLatest(resultsDir, this.projectName, latestSummary);
-
+  
     console.log(`Artifacts moved to ${artifactsDir}`);
+    console.log(`Run summary saved as ${runSummaryFileName}`);
   }
+  
 }
 
 export default MyReporter;
