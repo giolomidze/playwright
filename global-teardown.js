@@ -1,7 +1,7 @@
 // global-teardown.js
 const fs = require('fs');
 const path = require('path');
-const { allure } = require('allure-playwright');
+const { allure } = require('allure-js-commons');
 
 module.exports = async () => {
   const testResultsDir = 'test-results/';
