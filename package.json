@@ -17,15 +17,19 @@
     "@currents/playwright": "^1.4.5",
     "@playwright/test": "^1.45.1",
     "@types/node": "^20.14.10",
+    "@types/ora": "^3.2.0",
     "allure-commandline": "^2.29.0",
     "allure-playwright": "^3.0.0-beta.7",
     "monocart-reporter": "^2.6.1"
   },
   "dependencies": {
+    "@microsoft/mpt-reporter": "0.1.0-19072024-private-preview",
     "allure-js-commons": "^3.0.0-beta.7",
+    "chalk": "^4.1.2",
+    "cli-spinners": "^3.1.0",
     "cross-spawn": "^7.0.3",
     "dotenv": "^16.4.5",
     "fs-extra": "^11.2.0",
-    "@microsoft/mpt-reporter": "0.1.0-19072024-private-preview"
+    "ora": "^8.0.1"
   }
 }
